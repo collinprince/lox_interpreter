@@ -10,14 +10,14 @@ impl std::fmt::Display for Box<dyn Error> {
     }
 }
 
-// impl std::fmt::Debug for Box<dyn Error> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("Error")
-//             .field("line: {}", &self.line())
-//             .field("message: {}", &self.message())
-//             .finish()
-//     }
-// }
+impl std::fmt::Debug for Box<dyn Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Error")
+            .field("line: {}", &self.line())
+            .field("message: {}", &self.message())
+            .finish()
+    }
+}
 
 fn report_error_str(line: u32, message: String) -> String {
     format!("[Line {line}] Error: {message}\n")
@@ -33,6 +33,7 @@ pub struct CLArgsError {
     pub line: u32,
     pub message: String,
 }
+
 impl CLArgsError {
     pub fn new(line: u32, message: String) -> CLArgsError {
         CLArgsError { line, message }
@@ -48,6 +49,36 @@ impl std::fmt::Display for CLArgsError {
 impl std::error::Error for CLArgsError {}
 
 impl Error for CLArgsError {
+    fn line(&self) -> u32 {
+        self.line
+    }
+    fn message(&self) -> String {
+        self.message.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct IOError {
+    pub line: u32,
+    pub message: String,
+}
+
+impl std::fmt::Display for IOError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", report_error_str(self.line, self.message.clone()))
+    }
+}
+
+impl IOError {
+    pub fn new(line: u32, err: std::io::Error) -> IOError {
+        IOError {
+            line,
+            message: err.to_string(),
+        }
+    }
+}
+
+impl Error for IOError {
     fn line(&self) -> u32 {
         self.line
     }
