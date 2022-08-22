@@ -1,3 +1,6 @@
+mod lex_error;
+pub use lex_error::LexError;
+
 // create custom error trait for all error types to implement
 pub trait Error {
     fn line(&self) -> u32;

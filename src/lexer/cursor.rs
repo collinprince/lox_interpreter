@@ -8,6 +8,7 @@ pub struct Cursor<'a> {
     chars: Chars<'a>,
     #[cfg(debug_assertions)]
     prev: char,
+    pub line: u32,
 }
 
 pub const EOF_CHAR: char = '\0';
@@ -18,6 +19,7 @@ impl<'a> Cursor<'a> {
             initial_len: input.len(),
             chars: input.chars(),
             prev: EOF_CHAR,
+            line: 1,
         }
     }
 
@@ -61,7 +63,7 @@ impl<'a> Cursor<'a> {
     }
 
     // moves to next char acter
-    pub fn bump(&mut self) -> Option<char> {
+    pub fn advance(&mut self) -> Option<char> {
         let c = self.chars.next()?;
         #[cfg(debug_assertions)]
         {
@@ -74,7 +76,7 @@ impl<'a> Cursor<'a> {
     // eats symbols while predicate is true or until eof is reached
     pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         while predicate(self.first()) && !self.is_eof() {
-            self.bump();
+            self.advance();
         }
     }
 }

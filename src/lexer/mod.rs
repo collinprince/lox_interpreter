@@ -1,10 +1,18 @@
 pub mod cursor;
 
+use crate::error_handling::LexError;
+use cursor::Cursor;
+
+pub enum Literal {
+    String(String),
+    Double(f32),
+}
+
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
     pub line: u32,
-    pub literal: Option<String>,
+    pub literal: Option<Literal>,
 }
 
 impl Token {
@@ -17,12 +25,12 @@ impl Token {
         }
     }
 
-    pub fn literal(self, literal: Option<String>) -> Token {
+    pub fn literal(self, literal: Literal) -> Token {
         Token {
             kind: self.kind,
             lexeme: self.lexeme,
             line: self.line,
-            literal,
+            literal: Some(literal),
         }
     }
 }
@@ -34,7 +42,17 @@ impl std::fmt::Display for Token {
             "{} {} {}",
             self.kind,
             self.lexeme,
-            self.literal.clone().unwrap_or("".to_string())
+            match &self.literal {
+                Some(x) => {
+                    match x {
+                        Literal::String(s) => s.clone(),
+                        Literal::Double(d) => d.to_string(),
+                    }
+                }
+                None => {
+                    "".to_string()
+                }
+            }
         )
     }
 }
@@ -49,7 +67,7 @@ pub enum TokenKind {
     Comma,
     Dot,
     Minus,
-    PLus,
+    Plus,
     Semicolon,
     Slash,
     Star,
@@ -87,6 +105,16 @@ pub enum TokenKind {
     Var,
     While,
 
+    // semantically unimportant lexemes that will be filtered out
+    Comment,
+    Whitespace,
+    Newline,
+
+    // unknown token, we will report this error later
+    Unknown,
+    UnterminatedString,
+
+    // eof
     EOF,
 }
 
@@ -97,3 +125,172 @@ impl std::fmt::Display for TokenKind {
         write!(f, "{:?}", self)
     }
 }
+
+pub fn scan_tokens(input: &str) -> impl Iterator<Item = Token> + '_ {
+    let mut cursor = Cursor::new(input);
+    std::iter::from_fn(move || {
+        if cursor.is_eof() {
+            None
+        } else {
+            cursor.reset_len_consumed();
+            Some(cursor.scan_token())
+        }
+    })
+}
+
+impl Cursor<'_> {
+    fn is_next(&mut self, c: char) -> bool {
+        if self.is_eof() {
+            false
+        } else {
+            if c == self.first() {
+                self.advance();
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    fn scan_token(&mut self) -> Token {
+        use TokenKind::*;
+        let first_char = self.advance().unwrap();
+        match first_char {
+            // single char lexemes
+            '(' => Token::new(LeftParen, "(".to_string(), self.line),
+            ')' => Token::new(RightParen, ")".to_string(), self.line),
+            '{' => Token::new(LeftBrace, "{".to_string(), self.line),
+            '}' => Token::new(RightBrace, "}".to_string(), self.line),
+            ',' => Token::new(Comma, ",".to_string(), self.line),
+            '.' => Token::new(Dot, ".".to_string(), self.line),
+            '-' => Token::new(Minus, "-".to_string(), self.line),
+            '+' => Token::new(Plus, "+".to_string(), self.line),
+            '*' => Token::new(Star, "*".to_string(), self.line),
+            ';' => Token::new(Semicolon, ";".to_string(), self.line),
+
+            // optionally two char lexemes
+            '!' => {
+                if self.is_next('=') {
+                    Token::new(BangEqual, "!=".to_string(), self.line)
+                } else {
+                    Token::new(Bang, "!".to_string(), self.line)
+                }
+            }
+            '=' => {
+                if self.is_next('=') {
+                    Token::new(EqualEqual, "==".to_string(), self.line)
+                } else {
+                    Token::new(Equal, "=".to_string(), self.line)
+                }
+            }
+            '<' => {
+                if self.is_next('=') {
+                    Token::new(LessEqual, "<=".to_string(), self.line)
+                } else {
+                    Token::new(Less, "<".to_string(), self.line)
+                }
+            }
+            '>' => {
+                if self.is_next('=') {
+                    Token::new(GreaterEqual, ">=".to_string(), self.line)
+                } else {
+                    Token::new(Greater, ">".to_string(), self.line)
+                }
+            }
+
+            // potential multi char comment
+            '/' => {
+                if self.is_next('/') {
+                    self.eat_while(|c| c != '\n');
+                    Token::new(Comment, "".to_string(), self.line)
+                } else {
+                    Token::new(Slash, "/".to_string(), self.line)
+                }
+            }
+            ' ' | '\r' | '\t' => Token::new(Whitespace, "".to_string(), self.line),
+            '\n' => {
+                // technically newline is on self.line, not self.line + 1
+                // but this token will be filtered anyway, so it's ok
+                self.line += 1;
+                Token::new(Newline, "".to_string(), self.line)
+            }
+            '"' => self.string(),
+            d if is_digit(d) => self.number(std::string::String::from(d)),
+
+            x => Token::new(Unknown, x.to_string(), self.line),
+        }
+    }
+
+    pub fn string(&mut self) -> Token {
+        let mut literal: String = String::from("");
+        let mut line = self.line;
+        self.eat_while(|c| {
+            if c != '"' {
+                if c == '\n' {
+                    line += 1;
+                }
+                literal.push(c);
+                true
+            } else {
+                false
+            }
+        });
+        if self.is_eof() {
+            Token::new(
+                TokenKind::UnterminatedString,
+                format!("\"{}", literal),
+                self.line,
+            )
+            .literal(Literal::String(literal))
+        } else {
+            // advance to new line count in case this was a multiline string
+            self.line = line;
+            // advance past closing quote
+            self.advance();
+            Token::new(
+                TokenKind::String,
+                format!("\"{}\"", literal).to_string(),
+                self.line,
+            )
+            .literal(Literal::String(literal))
+        }
+    }
+
+    pub fn number(&mut self, mut literal: String) -> Token {
+        self.eat_while(|c| {
+            if is_digit(c) {
+                literal.push(c);
+                true
+            } else {
+                false
+            }
+        });
+
+        if self.is_next('.') && is_digit(self.second()) {
+            // consume fractional part as well
+            literal.push('.');
+            self.eat_while(|c| {
+                if is_digit(c) {
+                    literal.push(c);
+                    true
+                } else {
+                    false
+                }
+            })
+        }
+
+        Token::new(TokenKind::Number, literal.clone(), self.line)
+            .literal(Literal::Double(literal.parse::<f32>().unwrap()))
+    }
+}
+
+fn is_digit(c: char) -> bool {
+    c >= '0' && c <= '9'
+}
+
+/*
+after this sequence of tokens has been created, need to
+pass through and check for error tokens
+if there are error tokens present, we will report them
+and stop program, else we'll continue
+*/
