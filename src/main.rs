@@ -6,7 +6,7 @@ use std::io::Write;
 pub mod error_handling;
 pub mod lexer;
 
-use crate::error_handling::{CLArgsError, Error, IOError};
+use crate::error_handling::{CLArgsError, Error, IOError, LexError};
 use crate::lexer::cursor::Cursor;
 use crate::lexer::scan_tokens;
 
@@ -56,8 +56,41 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 }
 
 fn run(input: &str) -> Result<(), Box<dyn Error>> {
+    use crate::lexer::Literal;
+    use crate::lexer::TokenKind;
     println!("cursor");
-    scan_tokens(input);
-    Err(Box::new(CLArgsError::new(1, "Test".to_string())))
-    // Ok(())
+    let mut errors = vec![];
+    for x in scan_tokens(input) {
+        match x.kind {
+            lexer::TokenKind::Unknown => {
+                errors.push(LexError::new("Unknown token".to_string(), x.line));
+            }
+            lexer::TokenKind::String => match x.literal.clone() {
+                Some(l) => match l {
+                    Literal::Str { terminated: t, .. } => {
+                        if !t {
+                            errors.push(LexError::new("Unterminated string".to_string(), x.line));
+                        } else {
+                            println!("{}", x);
+                        }
+                    }
+                    _ => {
+                        println!("{}", x);
+                    }
+                },
+                _ => {
+                    println!("{}", x);
+                }
+            },
+            _ => {
+                println!("{}", x);
+            }
+        }
+    }
+    if errors.len() > 0 {
+        for e in errors {
+            println!("{}", e);
+        }
+    }
+    Ok(())
 }

@@ -3,11 +3,13 @@ pub mod cursor;
 use crate::error_handling::LexError;
 use cursor::Cursor;
 
+#[derive(Debug, Clone)]
 pub enum Literal {
-    String(String),
-    Double(f32),
+    Str { val: String, terminated: bool },
+    Num { val: f32 },
 }
 
+#[derive(Debug)]
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
@@ -45,8 +47,11 @@ impl std::fmt::Display for Token {
             match &self.literal {
                 Some(x) => {
                     match x {
-                        Literal::String(s) => s.clone(),
-                        Literal::Double(d) => d.to_string(),
+                        Literal::Str {
+                            val: s,
+                            terminated: t,
+                        } => format!("{} {}", if *t { "terminated" } else { "unterminated" }, s),
+                        Literal::Num { val: n } => n.to_string(),
                     }
                 }
                 None => {
@@ -57,7 +62,7 @@ impl std::fmt::Display for Token {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TokenKind {
     // single character tokens
     LeftParen,
@@ -112,7 +117,6 @@ pub enum TokenKind {
 
     // unknown token, we will report this error later
     Unknown,
-    UnterminatedString,
 
     // eof
     EOF,
@@ -236,12 +240,12 @@ impl Cursor<'_> {
             }
         });
         if self.is_eof() {
-            Token::new(
-                TokenKind::UnterminatedString,
-                format!("\"{}", literal),
-                self.line,
+            Token::new(TokenKind::String, format!("\"{}", literal), self.line).literal(
+                Literal::Str {
+                    val: literal,
+                    terminated: false,
+                },
             )
-            .literal(Literal::String(literal))
         } else {
             // advance to new line count in case this was a multiline string
             self.line = line;
@@ -252,7 +256,10 @@ impl Cursor<'_> {
                 format!("\"{}\"", literal).to_string(),
                 self.line,
             )
-            .literal(Literal::String(literal))
+            .literal(Literal::Str {
+                val: literal,
+                terminated: true,
+            })
         }
     }
 
@@ -279,8 +286,9 @@ impl Cursor<'_> {
             })
         }
 
-        Token::new(TokenKind::Number, literal.clone(), self.line)
-            .literal(Literal::Double(literal.parse::<f32>().unwrap()))
+        Token::new(TokenKind::Number, literal.clone(), self.line).literal(Literal::Num {
+            val: literal.parse::<f32>().unwrap(),
+        })
     }
 }
 
