@@ -112,6 +112,7 @@ pub enum TokenKind {
 
     // semantically unimportant lexemes that will be filtered out
     Comment,
+    BlockComment,
     Whitespace,
     Newline,
 
@@ -143,7 +144,7 @@ pub fn scan_tokens(input: &str) -> impl Iterator<Item = Token> + '_ {
 }
 
 impl Cursor<'_> {
-    fn is_next(&mut self, c: char) -> bool {
+    fn advance_if_next(&mut self, c: char) -> bool {
         if self.is_eof() {
             false
         } else {
@@ -174,28 +175,28 @@ impl Cursor<'_> {
 
             // optionally two char lexemes
             '!' => {
-                if self.is_next('=') {
+                if self.advance_if_next('=') {
                     Token::new(BangEqual, "!=".to_string(), self.line)
                 } else {
                     Token::new(Bang, "!".to_string(), self.line)
                 }
             }
             '=' => {
-                if self.is_next('=') {
+                if self.advance_if_next('=') {
                     Token::new(EqualEqual, "==".to_string(), self.line)
                 } else {
                     Token::new(Equal, "=".to_string(), self.line)
                 }
             }
             '<' => {
-                if self.is_next('=') {
+                if self.advance_if_next('=') {
                     Token::new(LessEqual, "<=".to_string(), self.line)
                 } else {
                     Token::new(Less, "<".to_string(), self.line)
                 }
             }
             '>' => {
-                if self.is_next('=') {
+                if self.advance_if_next('=') {
                     Token::new(GreaterEqual, ">=".to_string(), self.line)
                 } else {
                     Token::new(Greater, ">".to_string(), self.line)
@@ -204,9 +205,12 @@ impl Cursor<'_> {
 
             // potential multi char comment
             '/' => {
-                if self.is_next('/') {
+                if self.advance_if_next('/') {
                     self.eat_while(|c| c != '\n');
                     Token::new(Comment, "".to_string(), self.line)
+                } else if self.advance_if_next('*') {
+                    let literal = std::string::String::from("/*");
+                    self.block_comment(literal)
                 } else {
                     Token::new(Slash, "/".to_string(), self.line)
                 }
@@ -273,7 +277,7 @@ impl Cursor<'_> {
             }
         });
 
-        if self.is_next('.') && is_digit(self.second()) {
+        if self.advance_if_next('.') && is_digit(self.second()) {
             // consume fractional part as well
             literal.push('.');
             self.eat_while(|c| {
@@ -301,6 +305,43 @@ impl Cursor<'_> {
             }
         });
         Token::new(get_text_type(&literal), literal, self.line)
+    }
+
+    pub fn block_comment(&mut self, mut literal: String) -> Token {
+        let start_line = self.line;
+        let mut finish_line = start_line;
+        // make prev_c space to begin instead of '*'
+        // to avoid incorrectly lexing /*/ as a block comment
+        let mut prev_c = ' ';
+        self.eat_while(|c| {
+            literal.push(c);
+            if prev_c == '*' && c == '/' {
+                false
+            } else if c == '\n' {
+                prev_c = c;
+                finish_line += 1;
+                true
+            } else {
+                prev_c = c;
+                true
+            }
+        });
+        // unterminated block comment
+        if self.is_eof() {
+            return Token::new(TokenKind::BlockComment, literal.clone(), start_line).literal(
+                Literal::Str {
+                    val: literal,
+                    terminated: false,
+                },
+            );
+        }
+        // advance past / to end block comment
+        self.advance();
+        self.line = finish_line;
+        Token::new(TokenKind::BlockComment, literal.clone(), start_line).literal(Literal::Str {
+            val: literal,
+            terminated: true,
+        })
     }
 }
 
