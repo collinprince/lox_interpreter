@@ -7,7 +7,6 @@ pub mod error_handling;
 pub mod lexer;
 
 use crate::error_handling::{CLArgsError, Error, IOError, LexError};
-use crate::lexer::cursor::Cursor;
 use crate::lexer::scan_tokens;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -47,7 +46,7 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
             input => {
                 if let Err(x) = run(input) {
                     // report error if one occurred
-                    println!("{}", x);
+                    print!("{}", x);
                 }
             }
         }
@@ -87,7 +86,7 @@ fn run(input: &str) -> Result<(), Box<dyn Error>> {
     }
     if errors.len() > 0 {
         for e in errors {
-            println!("{}", e);
+            print!("{}", e);
         }
     }
     Ok(())

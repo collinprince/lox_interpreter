@@ -1,10 +1,7 @@
 pub mod cursor;
-
-use std::cell::RefCell;
-use std::collections::HashMap;
-
-// use crate::error_handling::LexError;
 use cursor::Cursor;
+
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -303,7 +300,7 @@ impl Cursor<'_> {
                 false
             }
         });
-        Token::new(is_keyword(&literal), literal, self.line)
+        Token::new(get_text_type(&literal), literal, self.line)
     }
 }
 
@@ -319,40 +316,34 @@ fn is_alpha_numeric(c: char) -> bool {
     is_digit(c) || is_alpha(c)
 }
 
-thread_local! { static KEYWORD_MAP: RefCell<Option<HashMap<&'static str, TokenKind>>> = RefCell::new(None);  }
+thread_local! { static KEYWORD_MAP: HashMap<&'static str, TokenKind> =
+    HashMap::from([
+        ("and", TokenKind::And),
+        ("class", TokenKind::Class),
+        ("else", TokenKind::Else),
+        ("false", TokenKind::False),
+        ("for", TokenKind::For),
+        ("fun", TokenKind::Fun),
+        ("if", TokenKind::If),
+        ("nil", TokenKind::Nil),
+        ("or", TokenKind::Or),
+        ("print", TokenKind::Print),
+        ("return", TokenKind::Return),
+        ("super", TokenKind::Super),
+        ("this", TokenKind::This),
+        ("true", TokenKind::True),
+        ("var", TokenKind::Var),
+        ("while", TokenKind::While),
+    ]);
+}
 // not sure that there is a way to have a static
 // hashmap in rust using std, so instead will
-// implement a thread safe singleton using refcell
-// and option
-fn is_keyword(s: &String) -> TokenKind {
+// implement a thread safe global variable
+fn get_text_type(s: &String) -> TokenKind {
     // implement a singleton
-    KEYWORD_MAP.with(|map_cell| {
-        if (*map_cell.borrow()).is_none() {
-            let mut hash_map: HashMap<&'static str, TokenKind> = HashMap::new();
-            hash_map.insert("and", TokenKind::And);
-            hash_map.insert("class", TokenKind::Class);
-            hash_map.insert("else", TokenKind::Else);
-            hash_map.insert("false", TokenKind::For);
-            hash_map.insert("for", TokenKind::For);
-            hash_map.insert("fun", TokenKind::Fun);
-            hash_map.insert("if", TokenKind::If);
-            hash_map.insert("nil", TokenKind::Nil);
-            hash_map.insert("or", TokenKind::Or);
-            hash_map.insert("print", TokenKind::Print);
-            hash_map.insert("return", TokenKind::Return);
-            hash_map.insert("super", TokenKind::Super);
-            hash_map.insert("this", TokenKind::This);
-            hash_map.insert("true", TokenKind::True);
-            hash_map.insert("var", TokenKind::Var);
-            hash_map.insert("while", TokenKind::While);
-            *map_cell.borrow_mut() = Some(hash_map);
-        }
-
-        // let y = map_cell.borrow().unwrap();
-        match map_cell.borrow().as_ref().unwrap().get(s.as_str()) {
-            Some(&token_kind) => token_kind,
-            None => TokenKind::Identifier,
-        }
+    KEYWORD_MAP.with(|map_cell| match map_cell.get(s.as_str()) {
+        Some(&token_kind) => token_kind,
+        None => TokenKind::Identifier,
     })
 }
 
