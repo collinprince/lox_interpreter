@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::Chars;
 
 // using implementation of cursor based on cursor from rust's lexer

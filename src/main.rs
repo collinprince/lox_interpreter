@@ -57,8 +57,6 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 
 fn run(input: &str) -> Result<(), Box<dyn Error>> {
     use crate::lexer::Literal;
-    use crate::lexer::TokenKind;
-    println!("cursor");
     let mut errors = vec![];
     for x in scan_tokens(input) {
         match x.kind {
