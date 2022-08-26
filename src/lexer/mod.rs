@@ -6,7 +6,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub enum Literal {
     Str { val: String, terminated: bool },
-    Num { val: f32 },
+    Num { val: f64 },
 }
 
 #[derive(Debug)]
@@ -291,7 +291,7 @@ impl Cursor<'_> {
         }
 
         Token::new(TokenKind::Number, literal.clone(), self.line).literal(Literal::Num {
-            val: literal.parse::<f32>().unwrap(),
+            val: literal.parse::<f64>().unwrap(),
         })
     }
 

@@ -5,23 +5,44 @@ use std::io::Write;
 
 pub mod error_handling;
 pub mod lexer;
+pub mod syntax;
 
 use crate::error_handling::{CLArgsError, Error, IOError, LexError};
-use crate::lexer::scan_tokens;
+use crate::lexer::{scan_tokens, TokenKind};
+use crate::syntax::expr::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() > 2 {
-        println!("Usage: lox_interpreter [script]");
-        return Err(Box::new(CLArgsError::new(
-            0,
-            "Incorrect commandline args".to_string(),
-        )));
-    } else if args.len() == 2 {
-        run_file(&args[1])?;
-    } else {
-        run_prompt()?;
-    }
+    // let args: Vec<String> = env::args().collect();
+    // if args.len() > 2 {
+    //     println!("Usage: lox_interpreter [script]");
+    //     return Err(Box::new(CLArgsError::new(
+    //         0,
+    //         "Incorrect commandline args".to_string(),
+    //     )));
+    // } else if args.len() == 2 {
+    //     run_file(&args[1])?;
+    // } else {
+    //     run_prompt()?;
+    // }
+
+    let expr = Expr::Binary(BinaryExpr {
+        left: Box::new(Expr::Unary(UnaryExpr {
+            operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
+            right: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 123.0 },
+            })),
+        })),
+        operator: Token::new(TokenKind::Star, "*".to_string(), 1),
+        right: Box::new(Expr::Grouping(GroupingExpr {
+            expr: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 45.67 },
+            })),
+        })),
+    });
+
+    let printer = AstPrinter {};
+    println!("{}", printer.visit_expr(&expr));
+
     Ok(())
 }
 
