@@ -77,18 +77,11 @@ impl ExprVisitor<String> for AstPrinter {
             Expr::Literal(c) => c.walk_expr(self),
             Expr::Unary(d) => d.walk_expr(self),
         }
-        // e.walk_expr(self)
     }
     fn visit_binary_expr(&self, b: &BinaryExpr) -> String {
         self.parenthesize(&b.operator.lexeme, &[&b.left, &b.right])
-        // let mut ret = String::new();
-        // // print binary expression
-        // ret
     }
     fn visit_grouping_expr(&self, g: &GroupingExpr) -> String {
-        // let mut ret = String::new();
-        // print grouping expr
-        // ret
         self.parenthesize(&"group".to_string(), &[&g.expr])
     }
     fn visit_literal_expr(&self, l: &LiteralExpr) -> String {
@@ -113,15 +106,6 @@ impl AstPrinter {
         ret
     }
 }
-
-// impl<T> ExprWalker<T> for BinaryExpr {
-//     fn walk_expr(&self, v: &dyn ExprVisitor<T>) -> T {
-//         let l: T = v.visit_expr(*self.left);
-//         let op = match_op(self.operator);
-//         let r: T = v.visit_expr(*self.right);
-//         op(l, r);
-//     }
-// }
 
 // TOOD: replace these Err(String)s with correct LoxError types
 pub fn match_op(operator: Token) -> Result<Box<dyn std::ops::FnOnce(f64, f64) -> f64>, String> {
