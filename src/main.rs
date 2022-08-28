@@ -44,6 +44,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     let printer = AstPrinter {};
     println!("{}", printer.print(&expr));
 
+    let expr_2 = Expr::Binary(BinaryExpr {
+        left: Box::new(Expr::Binary(BinaryExpr {
+            left: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 1.0 },
+            })),
+            operator: Token::new(TokenKind::Plus, "+".to_string(), 1),
+            right: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 2.0 },
+            })),
+        })),
+        operator: Token::new(TokenKind::Star, "*".to_string(), 1),
+        right: Box::new(Expr::Binary(BinaryExpr {
+            left: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 4.0 },
+            })),
+            operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
+            right: Box::new(Expr::Literal(LiteralExpr {
+                value: Literal::Num { val: 3.0 },
+            })),
+        })),
+    });
+
+    let rp_printer = crate::syntax::expr::ReversePolishPrinter {};
+    println!("{}", rp_printer.print(&expr_2));
+
     Ok(())
 }
 
