@@ -8,7 +8,8 @@ pub mod lexer;
 pub mod syntax;
 
 use crate::error_handling::{CLArgsError, Error, IOError, LexError};
-use crate::lexer::{scan_tokens, TokenKind};
+use crate::lexer::scan_tokens;
+use crate::lexer::token::{Token, TokenKind};
 use crate::syntax::expr::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -34,14 +35,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         })),
         operator: Token::new(TokenKind::Star, "*".to_string(), 1),
         right: Box::new(Expr::Grouping(GroupingExpr {
-            expr: Box::new(Expr::Literal(LiteralExpr {
+            expression: Box::new(Expr::Literal(LiteralExpr {
                 value: Literal::Num { val: 45.67 },
             })),
         })),
     });
 
     let printer = AstPrinter {};
-    println!("{}", printer.visit_expr(&expr));
+    println!("{}", printer.print(&expr));
 
     Ok(())
 }
@@ -76,14 +77,14 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 }
 
 fn run(input: &str) -> Result<(), Box<dyn Error>> {
-    use crate::lexer::Literal;
+    use crate::lexer::token::TokenKind;
     let mut errors = vec![];
     for x in scan_tokens(input) {
         match x.kind {
-            lexer::TokenKind::Unknown => {
+            TokenKind::Unknown => {
                 errors.push(LexError::new("Unknown token".to_string(), x.line));
             }
-            lexer::TokenKind::String => match x.literal.clone() {
+            TokenKind::String => match x.literal.clone() {
                 Some(l) => match l {
                     Literal::Str { terminated: t, .. } => {
                         if !t {
