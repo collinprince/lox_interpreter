@@ -5,6 +5,7 @@ use std::io::Write;
 
 pub mod error_handling;
 pub mod lexer;
+pub mod parser;
 pub mod syntax;
 
 use crate::error_handling::{CLArgsError, Error, IOError, LexError};

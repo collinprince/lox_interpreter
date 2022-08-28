@@ -45,6 +45,13 @@ impl Expr {
 }
 
 impl BinaryExpr {
+	pub fn new(left: Box<Expr>, operator: Token, right: Box<Expr>) -> BinaryExpr {
+		BinaryExpr {
+			left,
+			operator,
+			right,
+		}
+	}
 	pub fn walk_binary_expr<T>(&self, v: &dyn ExprVisitor<T>) -> T {
 		v.visit_binary_expr(self)
 	}

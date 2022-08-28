@@ -4,7 +4,7 @@ pub enum Literal {
     Num { val: f64 },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
@@ -57,7 +57,7 @@ impl std::fmt::Display for Token {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenKind {
     // single character tokens
     LeftParen,
