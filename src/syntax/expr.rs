@@ -52,24 +52,37 @@ impl BinaryExpr {
 			right,
 		}
 	}
+
 	pub fn walk_binary_expr<T>(&self, v: &dyn ExprVisitor<T>) -> T {
 		v.visit_binary_expr(self)
 	}
 }
 
 impl GroupingExpr {
+	pub fn new(expression: Box<Expr>) -> GroupingExpr {
+		GroupingExpr { expression }
+	}
+
 	pub fn walk_grouping_expr<T>(&self, v: &dyn ExprVisitor<T>) -> T {
 		v.visit_grouping_expr(self)
 	}
 }
 
 impl LiteralExpr {
+	pub fn new(value: Literal) -> LiteralExpr {
+		LiteralExpr { value }
+	}
+
 	pub fn walk_literal_expr<T>(&self, v: &dyn ExprVisitor<T>) -> T {
 		v.visit_literal_expr(self)
 	}
 }
 
 impl UnaryExpr {
+	pub fn new(operator: Token, right: Box<Expr>) -> UnaryExpr {
+		UnaryExpr { operator, right }
+	}
+
 	pub fn walk_unary_expr<T>(&self, v: &dyn ExprVisitor<T>) -> T {
 		v.visit_unary_expr(self)
 	}

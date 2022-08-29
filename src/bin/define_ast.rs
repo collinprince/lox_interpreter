@@ -69,7 +69,7 @@ pub fn define_ast(output_dir: String, base_name: String, types: Vec<String>) {
     };
 
     let mut out = String::new();
-    out.push_str("pub use crate::lexer::{Literal, Token};\n\n");
+    out.push_str("pub use crate::lexer::token::{Literal, Token};\n\n");
     let mut tree_types: Vec<TreeType> = Vec::new();
 
     for ttype in types {
@@ -149,9 +149,14 @@ pub fn define_visitor(base_name: String, tree_types: Vec<TreeType>) -> String {
     }
     out.push_str(format!("\t\t}}\n\t}}\n}}\n\n").as_str());
 
+    // create impl block with new and walk_* for each tree_type
     // now create walk_* for each of the tree_types
     for ttype in tree_types.iter() {
         out.push_str(format!("impl {} {{\n", ttype.full_name()).as_str());
+        // define a new function for each type
+        out.push_str(define_new_func_for_type(ttype).as_str());
+
+        // define walk_* for each type
         out.push_str(
             format!(
                 "\tpub fn walk_{}<T>(&self, v: &dyn {}Visitor<T>) -> T {{\n",
@@ -163,5 +168,31 @@ pub fn define_visitor(base_name: String, tree_types: Vec<TreeType>) -> String {
         out.push_str(format!("\t\tv.visit_{}(self)\n", ttype.snake_case_full_name()).as_str());
         out.push_str("\t}\n}\n\n");
     }
+    out
+}
+
+fn define_new_func_for_type(ttype: &TreeType) -> String {
+    let mut out = String::new();
+    out.push_str("\tpub fn new(");
+    // put each of the fields as parameters for new
+    for field in &ttype.fields {
+        let (field_type, field_name) = field.split_once(' ').unwrap();
+        out.push_str(format!("{}:{}, ", field_name, field_type).as_str());
+    }
+    // change trailing comma to paren or add closing paren for paramters
+    if ttype.fields.len() > 0 {
+        out.replace_range((out.len() - 2)..(out.len() - 1), ")");
+    } else {
+        out.push_str(") ");
+    }
+    // add return type
+    out.push_str(format!("-> {} {{\n", ttype.full_name()).as_str());
+    // create object
+    out.push_str(format!("\t\t{} {{\n", ttype.full_name()).as_str());
+    for field in &ttype.fields {
+        let (_, field_name) = field.split_once(' ').unwrap();
+        out.push_str(format!("\t\t\t{},\n", field_name).as_str());
+    }
+    out.push_str(format!("\t\t}}\n\t}}\n\n").as_str());
     out
 }
