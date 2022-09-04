@@ -7,12 +7,26 @@ use std::collections::HashMap;
 
 pub fn scan_tokens(input: &str) -> impl Iterator<Item = Token> + '_ {
     let mut cursor = Cursor::new(input);
+    // is_true_end is used to allow us to discover when EOF is in our input,
+    // return EOF, and then kill the iteration on the next call to scan_tokens
+    let mut is_true_end = false;
     std::iter::from_fn(move || {
-        if cursor.is_eof() {
+        if is_true_end {
             None
+        } else if cursor.is_eof() {
+            is_true_end = true;
+            Some(Token::new(TokenKind::EOF, "".to_string(), cursor.line))
         } else {
             cursor.reset_len_consumed();
-            Some(cursor.scan_token())
+            let mut ret = cursor.scan_token();
+            while ret.is_none() {
+                if cursor.is_eof() {
+                    return None;
+                } else {
+                    ret = cursor.scan_token();
+                }
+            }
+            ret
         }
     })
 }
@@ -31,49 +45,49 @@ impl Cursor<'_> {
         }
     }
 
-    fn scan_token(&mut self) -> Token {
+    fn scan_token(&mut self) -> Option<Token> {
         use TokenKind::*;
         let first_char = self.advance().unwrap();
         match first_char {
             // single char lexemes
-            '(' => Token::new(LeftParen, "(".to_string(), self.line),
-            ')' => Token::new(RightParen, ")".to_string(), self.line),
-            '{' => Token::new(LeftBrace, "{".to_string(), self.line),
-            '}' => Token::new(RightBrace, "}".to_string(), self.line),
-            ',' => Token::new(Comma, ",".to_string(), self.line),
-            '.' => Token::new(Dot, ".".to_string(), self.line),
-            '-' => Token::new(Minus, "-".to_string(), self.line),
-            '+' => Token::new(Plus, "+".to_string(), self.line),
-            '*' => Token::new(Star, "*".to_string(), self.line),
-            ';' => Token::new(Semicolon, ";".to_string(), self.line),
+            '(' => Some(Token::new(LeftParen, "(".to_string(), self.line)),
+            ')' => Some(Token::new(RightParen, ")".to_string(), self.line)),
+            '{' => Some(Token::new(LeftBrace, "{".to_string(), self.line)),
+            '}' => Some(Token::new(RightBrace, "}".to_string(), self.line)),
+            ',' => Some(Token::new(Comma, ",".to_string(), self.line)),
+            '.' => Some(Token::new(Dot, ".".to_string(), self.line)),
+            '-' => Some(Token::new(Minus, "-".to_string(), self.line)),
+            '+' => Some(Token::new(Plus, "+".to_string(), self.line)),
+            '*' => Some(Token::new(Star, "*".to_string(), self.line)),
+            ';' => Some(Token::new(Semicolon, ";".to_string(), self.line)),
 
             // optionally two char lexemes
             '!' => {
                 if self.advance_if_next('=') {
-                    Token::new(BangEqual, "!=".to_string(), self.line)
+                    Some(Token::new(BangEqual, "!=".to_string(), self.line))
                 } else {
-                    Token::new(Bang, "!".to_string(), self.line)
+                    Some(Token::new(Bang, "!".to_string(), self.line))
                 }
             }
             '=' => {
                 if self.advance_if_next('=') {
-                    Token::new(EqualEqual, "==".to_string(), self.line)
+                    Some(Token::new(EqualEqual, "==".to_string(), self.line))
                 } else {
-                    Token::new(Equal, "=".to_string(), self.line)
+                    Some(Token::new(Equal, "=".to_string(), self.line))
                 }
             }
             '<' => {
                 if self.advance_if_next('=') {
-                    Token::new(LessEqual, "<=".to_string(), self.line)
+                    Some(Token::new(LessEqual, "<=".to_string(), self.line))
                 } else {
-                    Token::new(Less, "<".to_string(), self.line)
+                    Some(Token::new(Less, "<".to_string(), self.line))
                 }
             }
             '>' => {
                 if self.advance_if_next('=') {
-                    Token::new(GreaterEqual, ">=".to_string(), self.line)
+                    Some(Token::new(GreaterEqual, ">=".to_string(), self.line))
                 } else {
-                    Token::new(Greater, ">".to_string(), self.line)
+                    Some(Token::new(Greater, ">".to_string(), self.line))
                 }
             }
 
@@ -81,25 +95,27 @@ impl Cursor<'_> {
             '/' => {
                 if self.advance_if_next('/') {
                     self.eat_while(|c| c != '\n');
-                    Token::new(Comment, "".to_string(), self.line)
+                    None
                 } else if self.advance_if_next('*') {
                     let literal = std::string::String::from("/*");
-                    self.block_comment(literal)
+                    self.block_comment(literal);
+                    None
                 } else {
-                    Token::new(Slash, "/".to_string(), self.line)
+                    Some(Token::new(Slash, "/".to_string(), self.line))
                 }
             }
-            ' ' | '\r' | '\t' => Token::new(Whitespace, "".to_string(), self.line),
+            ' ' | '\r' | '\t' => None,
             '\n' => {
                 // technically newline is on self.line, not self.line + 1
                 // but this token will be filtered anyway, so it's ok
                 self.line += 1;
-                Token::new(Newline, "".to_string(), self.line)
+                // Token::new(Newline, "".to_string(), self.line)
+                None
             }
-            '"' => self.string(),
-            d if is_digit(d) => self.number(std::string::String::from(d)),
-            a if is_alpha(a) => self.identifer_or_keyword(a.to_string()),
-            x => Token::new(Unknown, x.to_string(), self.line),
+            '"' => Some(self.string()),
+            d if is_digit(d) => Some(self.number(std::string::String::from(d))),
+            a if is_alpha(a) => Some(self.identifer_or_keyword(a.to_string())),
+            x => Some(Token::new(Unknown, x.to_string(), self.line)),
         }
     }
 

@@ -11,64 +11,65 @@ pub mod syntax;
 use crate::error_handling::{CLArgsError, Error, IOError, LexError};
 use crate::lexer::scan_tokens;
 use crate::lexer::token::{Token, TokenKind};
+use crate::parser::Parser;
 use crate::syntax::expr::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // let args: Vec<String> = env::args().collect();
-    // if args.len() > 2 {
-    //     println!("Usage: lox_interpreter [script]");
-    //     return Err(Box::new(CLArgsError::new(
-    //         0,
-    //         "Incorrect commandline args".to_string(),
-    //     )));
-    // } else if args.len() == 2 {
-    //     run_file(&args[1])?;
-    // } else {
-    //     run_prompt()?;
-    // }
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 2 {
+        println!("Usage: lox_interpreter [script]");
+        return Err(Box::new(CLArgsError::new(
+            0,
+            "Incorrect commandline args".to_string(),
+        )));
+    } else if args.len() == 2 {
+        run_file(&args[1])?;
+    } else {
+        run_prompt()?;
+    }
 
-    let expr = Expr::Binary(BinaryExpr {
-        left: Box::new(Expr::Unary(UnaryExpr {
-            operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
-            right: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 123.0 },
-            })),
-        })),
-        operator: Token::new(TokenKind::Star, "*".to_string(), 1),
-        right: Box::new(Expr::Grouping(GroupingExpr {
-            expression: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 45.67 },
-            })),
-        })),
-    });
+    // let expr = Expr::Binary(BinaryExpr {
+    //     left: Box::new(Expr::Unary(UnaryExpr {
+    //         operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
+    //         right: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 123.0 },
+    //         })),
+    //     })),
+    //     operator: Token::new(TokenKind::Star, "*".to_string(), 1),
+    //     right: Box::new(Expr::Grouping(GroupingExpr {
+    //         expression: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 45.67 },
+    //         })),
+    //     })),
+    // });
 
-    let printer = AstPrinter {};
-    println!("{}", printer.print(&expr));
+    // let printer = AstPrinter {};
+    // println!("{}", printer.print(&expr));
 
-    let expr_2 = Expr::Binary(BinaryExpr {
-        left: Box::new(Expr::Binary(BinaryExpr {
-            left: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 1.0 },
-            })),
-            operator: Token::new(TokenKind::Plus, "+".to_string(), 1),
-            right: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 2.0 },
-            })),
-        })),
-        operator: Token::new(TokenKind::Star, "*".to_string(), 1),
-        right: Box::new(Expr::Binary(BinaryExpr {
-            left: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 4.0 },
-            })),
-            operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
-            right: Box::new(Expr::Literal(LiteralExpr {
-                value: Literal::Num { val: 3.0 },
-            })),
-        })),
-    });
+    // let expr_2 = Expr::Binary(BinaryExpr {
+    //     left: Box::new(Expr::Binary(BinaryExpr {
+    //         left: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 1.0 },
+    //         })),
+    //         operator: Token::new(TokenKind::Plus, "+".to_string(), 1),
+    //         right: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 2.0 },
+    //         })),
+    //     })),
+    //     operator: Token::new(TokenKind::Star, "*".to_string(), 1),
+    //     right: Box::new(Expr::Binary(BinaryExpr {
+    //         left: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 4.0 },
+    //         })),
+    //         operator: Token::new(TokenKind::Minus, "-".to_string(), 1),
+    //         right: Box::new(Expr::Literal(LiteralExpr {
+    //             value: Literal::Num { val: 3.0 },
+    //         })),
+    //     })),
+    // });
 
-    let rp_printer = crate::syntax::expr::ReversePolishPrinter {};
-    println!("{}", rp_printer.print(&expr_2));
+    // let rp_printer = crate::syntax::expr::ReversePolishPrinter {};
+    // println!("{}", rp_printer.print(&expr_2));
 
     Ok(())
 }
@@ -104,38 +105,49 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 
 fn run(input: &str) -> Result<(), Box<dyn Error>> {
     use crate::lexer::token::TokenKind;
-    let mut errors = vec![];
-    for x in scan_tokens(input) {
-        match x.kind {
-            TokenKind::Unknown => {
-                errors.push(LexError::new("Unknown token".to_string(), x.line));
-            }
-            TokenKind::String => match x.literal.clone() {
-                Some(l) => match l {
-                    Literal::Str { terminated: t, .. } => {
-                        if !t {
-                            errors.push(LexError::new("Unterminated string".to_string(), x.line));
-                        } else {
-                            println!("{}", x);
-                        }
-                    }
-                    _ => {
-                        println!("{}", x);
-                    }
-                },
-                _ => {
-                    println!("{}", x);
-                }
-            },
-            _ => {
-                println!("{}", x);
-            }
-        }
+    // let mut errors = vec![];
+
+    let tokens: Vec<Token> = scan_tokens(input).collect();
+    let mut parser: Parser = Parser::new(tokens);
+    let expr = parser.parse();
+    if let Err(err) = expr {
+        println!("{err}");
+    } else {
+        let printer = AstPrinter {};
+        let expr = expr.unwrap();
+        println!("{}", printer.print(&expr));
     }
-    if errors.len() > 0 {
-        for e in errors {
-            print!("{}", e);
-        }
-    }
+    // for x in scan_tokens(input) {
+    //     match x.kind {
+    //         TokenKind::Unknown => {
+    //             errors.push(LexError::new("Unknown token".to_string(), x.line));
+    //         }
+    //         TokenKind::String => match x.literal.clone() {
+    //             Some(l) => match l {
+    //                 Literal::Str { terminated: t, .. } => {
+    //                     if !t {
+    //                         errors.push(LexError::new("Unterminated string".to_string(), x.line));
+    //                     } else {
+    //                         println!("{}", x);
+    //                     }
+    //                 }
+    //                 _ => {
+    //                     println!("{}", x);
+    //                 }
+    //             },
+    //             _ => {
+    //                 println!("{}", x);
+    //             }
+    //         },
+    //         _ => {
+    //             println!("{}", x);
+    //         }
+    //     }
+    // }
+    // if errors.len() > 0 {
+    //     for e in errors {
+    //         print!("{}", e);
+    //     }
+    // }
     Ok(())
 }
